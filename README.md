@@ -1,88 +1,94 @@
 # Posture Monitor System
 
-智能坐姿监测系统 — 基于 K230 视觉模块 + ESP32 + 移动端 App 的实时坐姿检测与提醒方案。
+AI Agent 驱动构建的智能坐姿与环境感知监测系统。项目将 K230 视觉识别、ESP32-S3 边缘控制、OneNET 云端通信和 uni-app 移动端整合为一套端到端物联网系统，用于实时识别坐姿异常、感知人体在位与环境光状态，并通过本地提醒和 App 可视化反馈形成闭环。
 
-## 系统架构
+## Highlights
 
-```
-┌──────────────┐    UART/JSON     ┌──────────────┐   MQTT/OneNET   ┌──────────────┐
-│  K230 Vision │ ──────────────→  │    ESP32-S3   │ ←────────────→  │  OneNET Cloud │
-│  YOLOv8n-pose│   9600 baud    │  Gateway+UI   │                │               │
-│  (MicroPython)│                 │  (Arduino C++) │                └───────┬───────┘
-└──────────────┘                  └──────────────┘                        │
-                                                                    HTTP / MQTT
-                                                                         │
-                                                                  ┌──────▼───────┐
-                                                                  │  Mobile App   │
-                                                                  │ UniApp/Vue3/TS│
-                                                                  └──────────────┘
-```
+- **AI 姿态识别**：K230 端运行 YOLOv8n-pose，基于人体关键点判断正常、低头、驼背、无人等状态。
+- **多传感器融合**：ESP32-S3 融合 K230 姿态结果、人体存在检测和 BH1750 环境光数据。
+- **端到端闭环**：视觉识别 → 串口传输 → 边缘判断 → MQTT 上云 → App 展示与控制。
+- **跨端协议统一**：通过 `shared/protocol` 同步 TypeScript、C/C++、Python 和 JSON Schema 常量。
+- **Agent 驱动开发**：使用多 Agent 工作流辅助需求拆解、代码重构、协议对齐、调试验证和安全清理。
 
-## 项目结构
+## System Flow
 
 ```text
-refactored/
-├── docs/                    # 产品总文档入口与系统级文档
-├── shared/                  # 共享协议层 (三端统一常量)
-│   └── protocol/
-├── posture_monitor/         # ESP32-S3 固件 (Arduino)
-├── k230/                    # K230 视觉模块 (MicroPython)
-├── app/                     # 移动端 App (UniApp + Vue3 + TypeScript)
-└── scripts/                 # 工具脚本
+K230 Vision
+Camera + YOLOv8n-pose
+        |
+        | UART / JSON
+        v
+ESP32-S3 Gateway
+Posture fusion + Sensors + Local alerts
+        |
+        | MQTT / OneNET
+        v
+Cloud Platform
+Device properties + History data
+        |
+        | HTTP / MQTT
+        v
+Mobile App
+Realtime status + History + Control
 ```
 
-## 子项目说明
+## Tech Stack
 
-### K230 Vision (`k230/`)
-- **功能**: YOLOv8n-pose 人体姿态检测，实时分析坐姿
-- **输出**: 通过 UART 向 ESP32 发送 JSON 帧 (posture_type, confidence, is_abnormal)
-- **技术栈**: MicroPython (CanMV), nncase_runtime, K230 NPU
+| Module | Path | Tech |
+|---|---|---|
+| Vision | `k230/` | K230, MicroPython, YOLOv8n-pose |
+| Firmware | `posture_monitor/` | ESP32-S3, Arduino C++, PubSubClient |
+| App | `app/` | uni-app, Vue 3, TypeScript, Vite |
+| Protocol | `shared/protocol/` | JSON Schema, TS/C/Python constants |
+| Docs | `docs/` | Architecture, wiring, integration notes |
 
-### ESP32-S3 Gateway (`posture_monitor/`)
-- **功能**: 系统网关 — 接收 K230 数据、驱动本地告警、同步云端状态
-- **外设**: SSD1306 OLED, WS2812 LED, SYN-6288 语音模块, EC11 编码器, 蜂鸣器
-- **通信**: UART (K230), WiFi/MQTT (OneNET), I2C (OLED)
-- **技术栈**: Arduino Framework, PubSubClient, U8g2
+## Repository Structure
 
-### Mobile App (`app/`)
-- **功能**: 用户界面 — 坐姿概览、实时监控、历史趋势、设备控制
-- **通信**: 通过 OneNET REST API 与 ESP32 间接通信
-- **技术栈**: UniApp, Vue 3, TypeScript, Vite
-
-## 共享协议
-
-三端通过 `shared/protocol/` 共享统一的协议常量：
-- **姿势类型**: `normal`, `head_down`, `hunchback`, `unknown`, `no_person`
-- **系统模式**: `0=posture`, `1=clock`, `2=timer`
-- **告警掩码**: `bit0=LED`, `bit1=Buzzer`, `bit2=Voice`
-
-修改协议时，更新 `shared/protocol/schemas.json` 后同步更新三种语言的常量文件。
-
-## 文档入口
-
-- 产品文档统一索引：`refactored/docs/index.md`
-- 系统架构文档：`refactored/docs/architecture.md`
-- ESP32 接线文档：`refactored/posture_monitor/docs/hardware-wiring.md`
-- K230 引脚文档：`refactored/k230/docs/k230-pinout.md`
-
-产品文档按领域存放：系统级文档放在 `refactored/docs/`，子系统专属文档放在各自子目录的 `docs/`。
-
-## 开发指南
-
-### K230 部署
-```bash
-# 通过 CanMV IDE 上传 k230/src/*.py 和 k230/models/*.kmodel 到 K230 开发板
+```text
+.
+├── app/                 # Mobile App
+├── k230/                # K230 vision module
+├── posture_monitor/     # ESP32-S3 firmware
+├── shared/protocol/     # Cross-platform protocol contract
+├── docs/                # System architecture and project docs
+└── README.md
 ```
 
-### ESP32 编译
-```bash
-# 使用 Arduino IDE 或 PlatformIO 编译 posture_monitor/ 目录下的固件
-```
+## Core Logic
 
-### App 开发
-```bash
-cd app
-npm install
-npm run dev:h5          # H5 开发
-npm run dev:mp-weixin   # 微信小程序开发
-```
+1. K230 captures camera frames and performs pose estimation.
+2. The visual module classifies posture as `normal`, `head_down`, `hunchback`, `unknown`, or `no_person`.
+3. ESP32-S3 receives posture frames over UART and combines them with presence and ambient-light sensing.
+4. The firmware reports device properties to OneNET through MQTT and triggers local LED / buzzer / voice alerts.
+5. The mobile App reads realtime and historical data from OneNET and sends control commands back to the device.
+
+## Agent-Driven Engineering
+
+This project was developed with an AI Agent workflow rather than isolated code generation. Agents were used for:
+
+- understanding and refactoring a multi-module repository;
+- aligning protocol constants across App, ESP32, K230 and schema files;
+- debugging cross-device communication and MQTT integration;
+- reviewing security risks such as committed credentials, build artifacts and local test data;
+- maintaining documentation for architecture, wiring and integration behavior.
+
+The result is a complete AI-assisted engineering workflow covering planning, implementation, verification and repository hardening.
+
+## Security Notes
+
+Real credentials are not included in this repository. Configure local values through ignored environment files or local firmware configuration before deployment.
+
+Examples:
+
+- `app/.env`
+- `posture_monitor/config.h`
+
+Do not commit real Wi-Fi passwords, cloud tokens, generated firmware artifacts or personal test images.
+
+## Documentation
+
+- System architecture: `docs/architecture.md`
+- Documentation index: `docs/index.md`
+- ESP32 wiring: `posture_monitor/docs/hardware-wiring.md`
+- K230 pinout: `k230/docs/k230-pinout.md`
+- OneNET API: `app/docs/api/oneNet-api.md`
