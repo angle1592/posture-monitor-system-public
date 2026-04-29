@@ -17,13 +17,16 @@ Thumbs.db
 
 # === Python ===
 __pycache__/
+**/__pycache__/
 *.pyc
 *.pyo
 .ruff_cache/
+**/.ruff_cache/
 .mypy_cache/
 .pytest_cache/
 venv/
 .env
+.env.*
 
 # === Node.js (App) ===
 app/node_modules/
@@ -33,10 +36,20 @@ app/unpackage/
 # === ESP32 / Arduino ===
 esp32/.pio/
 esp32/build/
+posture_monitor/.pio/
+posture_monitor/.arduino-build/
+posture_monitor/.tools/
+*.elf
+*.bin
+*.hex
+*.map
 
 # === K230 Models (large binary) ===
 # Uncomment if you don't want to track the model file:
 # k230/models/*.kmodel
+
+# === Test data with personal images ===
+k230/tests/image/
 
 # === Temp files ===
 _copy_projects.ps1
